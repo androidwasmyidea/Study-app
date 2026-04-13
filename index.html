@@ -4,110 +4,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { margin:0; font-family: Arial; background:#0f172a; color:white; }
-    header { padding:12px; text-align:center; background:#020617; font-size:18px; }.container {
-  display:flex;
-  flex-direction:column;
-  height:calc(100vh - 50px);
-}
-
-.section {
-  padding:12px;
-}
-
-.card {
-  background:#1e293b;
-  padding:12px;
-  border-radius:12px;
-  margin-bottom:12px;
-}
-
-input,select,button {
-  width:100%;
-  padding:10px;
-  margin-top:6px;
-  border-radius:8px;
-  border:none;
-  font-size:14px;
-}
-
-button { background:#38bdf8; }
-.danger { background:#ef4444; }
-
-.task {
-  margin-top:8px;
-  padding:10px;
-  background:#334155;
-  border-radius:8px;
-  font-size:14px;
-}
-
-.urgent { border-left:4px solid red; }
-.done { text-decoration:line-through; opacity:0.6; }
-
-.timer { font-size:32px; text-align:center; }
-
-.locked { opacity:0.4; pointer-events:none; }
-
-/* LOGIN */
-#loginScreen {
-  position:fixed;
-  top:0; left:0;
-  width:100%; height:100%;
-  background:linear-gradient(135deg,#020617,#0f172a);
-  display:flex;
-  justify-content:center;
-  align-items:center;
-}
-
-.login-box {
-  width:85%;
-  max-width:320px;
-  background:#1e293b;
-  padding:20px;
-  border-radius:16px;
-  text-align:center;
-  box-shadow:0 0 20px rgba(0,0,0,0.4);
-}
-
-.login-box h2 {
-  margin-bottom:10px;
-}
-
-.toggle {
-  display:flex;
-  margin-bottom:10px;
-}
-
-.toggle button {
-  flex:1;
-  margin:2px;
-  background:#334155;
-}
-
-.active { background:#38bdf8 !important; }
-
+    header { padding:12px; text-align:center; background:#020617; font-size:18px; }
+    .container { display:flex; flex-direction:column; height:calc(100vh - 50px); }
+    .section { padding:12px; }
+    .card { background:#1e293b; padding:12px; border-radius:12px; margin-bottom:12px; }
+    input,select,button { width:100%; padding:10px; margin-top:6px; border-radius:8px; border:none; font-size:14px; }
+    button { background:#38bdf8; }
+    .danger { background:#ef4444; }
+    .task { margin-top:8px; padding:10px; background:#334155; border-radius:8px; font-size:14px; }
+    .urgent { border-left:4px solid red; }
+    .done { text-decoration:line-through; opacity:0.6; }
+    .timer { font-size:32px; text-align:center; }
+    .locked { opacity:0.4; pointer-events:none; }
+    #loginScreen { position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg,#020617,#0f172a); display:flex; justify-content:center; align-items:center; }
+    .login-box { width:85%; max-width:320px; background:#1e293b; padding:20px; border-radius:16px; text-align:center; }
+    .toggle { display:flex; margin-bottom:10px; }
+    .toggle button { flex:1; margin:2px; background:#334155; }
+    .active { background:#38bdf8 !important; }
   </style>
 </head>
 <body><div id="loginScreen">
   <div class="login-box">
-    <h2 id="loginTitle">Login</h2><div class="toggle">
-  <button id="loginBtn" class="active" onclick="switchMode('login')">Login</button>
-  <button id="registerBtn" onclick="switchMode('register')">Register</button>
-</div>
-
-<input id="username" placeholder="Username">
-<input id="password" type="password" placeholder="Password">
-
-<button onclick="submitAuth()">Continue</button>
-
+    <h2 id="loginTitle">Login</h2>
+    <div class="toggle">
+      <button id="loginBtn" class="active" onclick="switchMode('login')">Login</button>
+      <button id="registerBtn" onclick="switchMode('register')">Register</button>
+    </div>
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="submitAuth()">Continue</button>
   </div>
-</div><header>Study Focus OS</header><div class="container">  <div class="section" id="leftPanel"><div class="card">
+</div><header>Study Focus OS</header>
+<div class="container">
+  <div class="section" id="leftPanel"><div class="card">
   <h3>Add Task</h3>
   <input id="taskInput" placeholder="Task">
   <input id="deadline" type="date">
   <select id="type">
     <option value="study">Study</option>
     <option value="submission">Submission</option>
+    <option value="assignment">Assignment</option>
   </select>
   <button onclick="addTask()">Add</button>
   <button onclick="startVoice()">🎤 Speak</button>
@@ -115,6 +51,7 @@ button { background:#38bdf8; }
 
 <div class="card">
   <h3>Focus Mode</h3>
+  <input id="focusTime" type="number" placeholder="Minutes (e.g. 25)">
   <div class="timer" id="timer">25:00</div>
   <button onclick="startTimer()">Start</button>
   <button onclick="resetTimer()">Reset</button>
@@ -139,137 +76,60 @@ button { background:#38bdf8; }
   <div id="subjectList"></div>
 </div>
 
-  </div></div><script>
-let mode = "login";
+  </div>
+</div><script>
+let mode="login";
+function switchMode(m){ mode=m; loginTitle.innerText=m==='login'?'Login':'Register'; loginBtn.classList.toggle('active',m==='login'); registerBtn.classList.toggle('active',m==='register'); }
+function submitAuth(){ if(mode==='login') login(); else register(); }
 
-function switchMode(m){
-  mode = m;
-  loginTitle.innerText = m === "login" ? "Login" : "Register";
-  loginBtn.classList.toggle("active", m === "login");
-  registerBtn.classList.toggle("active", m === "register");
-}
+function register(){ let u=username.value,p=password.value; let users=JSON.parse(localStorage.getItem('users'))||{}; if(users[u]) return alert('User exists'); users[u]=p; localStorage.setItem('users',JSON.stringify(users)); alert('Registered'); }
+function login(){ let u=username.value,p=password.value; let users=JSON.parse(localStorage.getItem('users'))||{}; if(users[u]===p){ localStorage.setItem('currentUser',u); loginScreen.style.display='none'; loadUserData(); } else alert('Invalid'); }
 
-function submitAuth(){
-  if(mode === "login") login();
-  else register();
-}
+function loadUserData(){ let u=localStorage.getItem('currentUser'); tasks=JSON.parse(localStorage.getItem(u+'_tasks'))||[]; subjects=JSON.parse(localStorage.getItem(u+'_subjects'))||[]; render(); }
+function save(){ let u=localStorage.getItem('currentUser'); localStorage.setItem(u+'_tasks',JSON.stringify(tasks)); localStorage.setItem(u+'_subjects',JSON.stringify(subjects)); }
 
-function register(){
-  let u = username.value;
-  let p = password.value;
-  let users = JSON.parse(localStorage.getItem("users")) || {};
+let tasks=[],subjects=[],strict=false,currentTaskIndex=null;
 
-  if(users[u]) return alert("User exists");
-  users[u] = p;
-  localStorage.setItem("users", JSON.stringify(users));
-  alert("Registered. Now login.");
-}
+function addTask(){ tasks.push({text:taskInput.value,deadline:deadline.value,type:type.value,done:false}); save(); render(); }
+function addSubject(){ subjects.push({name:subjectName.value,strength:0}); save(); render(); }
 
-function login(){
-  let u = username.value;
-  let p = password.value;
-  let users = JSON.parse(localStorage.getItem("users")) || {};
+function toggleTask(i){ if(strict && i!==currentTaskIndex) return; let t=tasks[i]; t.done=!t.done; if(t.done && t.type==='study'){ let s=subjects.find(x=>t.text.includes(x.name)); if(s) s.strength++; } save(); render(); }
 
-  if(users[u] === p){
-    localStorage.setItem("currentUser", u);
-    loginScreen.style.display="none";
-    loadUserData();
-  } else alert("Invalid login");
-}
+function render(){ taskList.innerHTML=''; subjectList.innerHTML=''; let today=new Date().toISOString().split('T')[0];
+  tasks.sort((a,b)=>(a.deadline||'').localeCompare(b.deadline||''));
 
-function loadUserData(){
-  let user = localStorage.getItem("currentUser");
-  tasks = JSON.parse(localStorage.getItem(user+"_tasks")) || [];
-  subjects = JSON.parse(localStorage.getItem(user+"_subjects")) || [];
-  render();
-}
-
-function save(){
-  let user = localStorage.getItem("currentUser");
-  localStorage.setItem(user+"_tasks", JSON.stringify(tasks));
-  localStorage.setItem(user+"_subjects", JSON.stringify(subjects));
-}
-
-let tasks=[];
-let subjects=[];
-let strict=false;
-
-function addTask(){
-  tasks.push({ text:taskInput.value, deadline:deadline.value, type:type.value, done:false });
-  save(); render();
-}
-
-function addSubject(){
-  subjects.push({ name:subjectName.value, strength:0 });
-  save(); render();
-}
-
-function toggleTask(i){
-  if(strict) return;
-  let t=tasks[i];
-  t.done=!t.done;
-  if(t.done && t.type==="study"){
-    let s=subjects.find(x=>t.text.includes(x.name));
-    if(s) s.strength++;
-  }
-  save(); render();
-}
-
-function render(){
-  taskList.innerHTML="";
-  subjectList.innerHTML="";
-  let today=new Date().toISOString().split("T")[0];
-
-  tasks.sort((a,b)=>(a.deadline||"").localeCompare(b.deadline||""));
+  let pending=tasks.filter(t=>!t.done);
+  let top= pending[0];
+  currentTaskIndex = tasks.indexOf(top);
 
   tasks.forEach((t,i)=>{
-    let d=document.createElement("div");
-    d.className="task";
-    if(t.deadline && t.deadline<=today) d.classList.add("urgent");
-    if(t.done) d.classList.add("done");
-
-    d.innerHTML=`${t.text}<br>${t.deadline||""}<br>
-    <button onclick="toggleTask(${i})">Done</button>`;
+    if(strict && i!==currentTaskIndex) return; // hide others
+    let d=document.createElement('div'); d.className='task';
+    if(t.deadline && t.deadline<=today) d.classList.add('urgent');
+    if(t.done) d.classList.add('done');
+    d.innerHTML=`${t.text}<br>${t.deadline||''}<br>${t.type}<br><button onclick="toggleTask(${i})">Done</button>`;
     taskList.appendChild(d);
   });
 
-  subjects.forEach(s=>{
-    let d=document.createElement("div");
-    d.className="task";
-    d.innerHTML=`${s.name}<br>Strength: ${s.strength}`;
-    subjectList.appendChild(d);
-  });
+  subjects.forEach(s=>{ let d=document.createElement('div'); d.className='task'; d.innerHTML=`${s.name}<br>Strength: ${s.strength}`; subjectList.appendChild(d); });
 
-  let pending=tasks.filter(t=>!t.done);
-  priority.innerHTML = pending[0] ? `<b>${pending[0].text}</b>` : "No tasks";
+  priority.innerHTML = top ? `<b>${top.text}</b>` : 'No tasks';
 }
 
 // TIMER
-let time=1500, interval;
-function startTimer(){ clearInterval(interval); interval=setInterval(()=>{ if(time<=0) clearInterval(interval); time--; updateTimer(); },1000); }
+let time=1500,interval;
+function startTimer(){ let m=parseInt(focusTime.value)||25; time=m*60; updateTimer(); clearInterval(interval); interval=setInterval(()=>{ if(time<=0) clearInterval(interval); time--; updateTimer(); },1000);
+  if(strict){ activateStrict(); }
+}
 function resetTimer(){ clearInterval(interval); time=1500; updateTimer(); }
-function updateTimer(){ let m=Math.floor(time/60), s=time%60; timer.innerText=`${m}:${s.toString().padStart(2,'0')}`; }
+function updateTimer(){ let m=Math.floor(time/60),s=time%60; timer.innerText=`${m}:${s.toString().padStart(2,'0')}`; }
 
-function activateStrict(){ strict=true; leftPanel.classList.add("locked"); }
-function emergencyStop(){ strict=false; leftPanel.classList.remove("locked"); }
+function activateStrict(){ strict=true; leftPanel.classList.add('locked'); }
+function emergencyStop(){ strict=false; leftPanel.classList.remove('locked'); render(); }
 
-function startVoice(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR) return alert("Not supported");
-  let r=new SR(); r.lang="en-IN";
-  r.onresult=e=>parseVoice(e.results[0][0].transcript);
-  r.start();
-}
+function startVoice(){ const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR) return alert('Not supported'); let r=new SR(); r.lang='en-IN'; r.onresult=e=>parseVoice(e.results[0][0].transcript); r.start(); }
+function parseVoice(text){ let type=text.includes('submit')?'submission':'study'; tasks.push({text,deadline:'',type,done:false}); save(); render(); }
 
-function parseVoice(text){
-  let type=text.includes("submit")?"submission":"study";
-  tasks.push({text,deadline:"",type,done:false});
-  save(); render();
-}
-
-window.onload=function(){
-  let u=localStorage.getItem("currentUser");
-  if(u){ loginScreen.style.display="none"; loadUserData(); }
-}
+window.onload=function(){ let u=localStorage.getItem('currentUser'); if(u){ loginScreen.style.display='none'; loadUserData(); } }
 </script></body>
 </html>
