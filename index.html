@@ -1,0 +1,257 @@
+<!DOCTYPE html><html>
+<head>
+  <title>Study Focus OS</title>
+  <style>
+    body { margin:0; font-family: Arial; background:#0f172a; color:white; }
+    header { padding:15px; text-align:center; background:#020617; font-size:20px; }
+    .container { display:grid; grid-template-columns: 2fr 1fr; height: calc(100vh - 60px); }
+    .left,.right { padding:20px; overflow-y:auto; }
+    .card { background:#1e293b; padding:15px; border-radius:12px; margin-bottom:20px; }
+    input,select,button { width:100%; padding:10px; margin-top:8px; border-radius:6px; border:none; }
+    button { background:#38bdf8; cursor:pointer; }
+    .task { margin-top:10px; padding:10px; background:#334155; border-radius:8px; }
+    .urgent { border-left:5px solid red; }
+    .done { text-decoration: line-through; opacity:0.5; }
+    .focus-box { text-align:center; font-size:22px; }
+    .timer { font-size:40px; margin:10px 0; }
+    .locked { opacity:0.4; pointer-events:none; }
+    .danger { background:#ef4444; }/* LOGIN */
+#loginScreen {
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:#020617;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+.login-box {
+  background:#1e293b;
+  padding:25px;
+  border-radius:12px;
+  width:300px;
+}
+
+  </style>
+</head>
+<body><div id="loginScreen">
+  <div class="login-box">
+    <h3>Login / Register</h3>
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <button onclick="register()">Register</button>
+  </div>
+</div><header>Study Focus OS</header>
+<div class="container">  <div class="left" id="leftPanel"><div class="card">
+  <h3>Add Task</h3>
+  <input id="taskInput" placeholder="Task">
+  <input id="deadline" type="date">
+  <select id="type">
+    <option value="study">Study</option>
+    <option value="submission">Submission</option>
+  </select>
+  <button onclick="addTask()">Add</button>
+  <button onclick="startVoice()">🎤 Speak Task</button>
+</div>
+
+<div class="card">
+  <h3>Tasks</h3>
+  <div id="taskList"></div>
+</div>
+
+<div class="card">
+  <h3>Subjects</h3>
+  <input id="subjectName" placeholder="Subject">
+  <button onclick="addSubject()">Add Subject</button>
+  <div id="subjectList"></div>
+</div>
+
+  </div>  <div class="right"><div class="card focus-box">
+  <div>FOCUS MODE</div>
+  <div class="timer" id="timer">25:00</div>
+  <button onclick="startTimer()">Start</button>
+  <button onclick="resetTimer()">Reset</button>
+  <button onclick="activateStrict()">Enable Strict Mode</button>
+  <button class="danger" onclick="emergencyStop()">Emergency Stop</button>
+</div>
+
+<div class="card">
+  <h3>Today's Priority</h3>
+  <div id="priority"></div>
+</div>
+
+  </div>
+</div><script>
+// LOGIN SYSTEM
+function register(){
+  let u = username.value;
+  let p = password.value;
+  if(!u || !p) return alert("Enter details");
+
+  let users = JSON.parse(localStorage.getItem("users")) || {};
+  if(users[u]) return alert("User exists");
+
+  users[u] = p;
+  localStorage.setItem("users", JSON.stringify(users));
+  alert("Registered. Now login.");
+}
+
+function login(){
+  let u = username.value;
+  let p = password.value;
+  let users = JSON.parse(localStorage.getItem("users")) || {};
+
+  if(users[u] === p){
+    localStorage.setItem("currentUser", u);
+    document.getElementById("loginScreen").style.display = "none";
+    loadUserData();
+  } else {
+    alert("Invalid login");
+  }
+}
+
+function loadUserData(){
+  let user = localStorage.getItem("currentUser");
+  tasks = JSON.parse(localStorage.getItem(user+"_tasks")) || [];
+  subjects = JSON.parse(localStorage.getItem(user+"_subjects")) || [];
+  render();
+}
+
+function save(){
+  let user = localStorage.getItem("currentUser");
+  localStorage.setItem(user+"_tasks", JSON.stringify(tasks));
+  localStorage.setItem(user+"_subjects", JSON.stringify(subjects));
+}
+
+// DATA
+let tasks = [];
+let subjects = [];
+let strict = false;
+
+function addTask(){
+  tasks.push({ text:taskInput.value, deadline:deadline.value, type:type.value, done:false });
+  save(); render();
+}
+
+function addSubject(){
+  subjects.push({ name:subjectName.value, strength:0 });
+  save(); render();
+}
+
+function toggleTask(i){
+  if(strict) return;
+  let t = tasks[i];
+  t.done = !t.done;
+  if(t.done && t.type === "study"){
+    let s = subjects.find(x => t.text.toLowerCase().includes(x.name.toLowerCase()));
+    if(s) s.strength++;
+  }
+  save(); render();
+}
+
+function render(){
+  taskList.innerHTML="";
+  subjectList.innerHTML="";
+  let today = new Date().toISOString().split("T")[0];
+
+  tasks.sort((a,b)=> (a.deadline||"").localeCompare(b.deadline||""));
+
+  tasks.forEach((t,i)=>{
+    let div=document.createElement("div");
+    div.className="task";
+    if(t.deadline && t.deadline<=today) div.classList.add("urgent");
+    if(t.done) div.classList.add("done");
+
+    div.innerHTML=`${t.text}<br>${t.deadline||""}<br>
+    <button onclick="toggleTask(${i})">Done</button>`;
+
+    taskList.appendChild(div);
+  });
+
+  subjects.forEach(s=>{
+    let div=document.createElement("div");
+    div.className="task";
+    div.innerHTML=`${s.name}<br>Strength: ${s.strength}`;
+    subjectList.appendChild(div);
+  });
+
+  calculatePriority();
+}
+
+function calculatePriority(){
+  let p=document.getElementById("priority");
+  p.innerHTML="";
+  let pending=tasks.filter(t=>!t.done);
+  if(pending.length===0){ p.innerHTML="No pending tasks"; return; }
+  p.innerHTML=`<b>${pending[0].text}</b>`;
+}
+
+// TIMER
+let time=1500;
+let interval;
+
+function startTimer(){
+  clearInterval(interval);
+  interval=setInterval(()=>{
+    if(time<=0) clearInterval(interval);
+    time--; updateTimer();
+  },1000);
+}
+
+function resetTimer(){
+  clearInterval(interval);
+  time=1500; updateTimer();
+}
+
+function updateTimer(){
+  let min=Math.floor(time/60);
+  let sec=time%60;
+  timer.innerText=`${min}:${sec.toString().padStart(2,'0')}`;
+}
+
+// STRICT MODE
+function activateStrict(){
+  strict = true;
+  document.getElementById("leftPanel").classList.add("locked");
+}
+
+function emergencyStop(){
+  strict = false;
+  document.getElementById("leftPanel").classList.remove("locked");
+}
+
+// VOICE
+function startVoice(){
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition){ alert("Voice not supported"); return; }
+  let recog = new SpeechRecognition();
+  recog.lang = "en-IN";
+  recog.onresult = function(e){ parseVoice(e.results[0][0].transcript); };
+  recog.start();
+}
+
+function parseVoice(text){
+  text = text.toLowerCase();
+  let deadlineMatch = text.match(/(\d{1,2} \w+|\d{4}-\d{2}-\d{2})/);
+  let deadline="";
+  if(deadlineMatch){
+    let d=new Date(deadlineMatch[0]);
+    if(!isNaN(d)) deadline=d.toISOString().split("T")[0];
+  }
+  let type=text.includes("submit")?"submission":"study";
+  tasks.push({ text:text, deadline, type, done:false });
+  save(); render();
+}
+
+// AUTO LOGIN CHECK
+window.onload = function(){
+  let user = localStorage.getItem("currentUser");
+  if(user){
+    document.getElementById("loginScreen").style.display="none";
+    loadUserData();
+  }
+}
+</script></body>
+</html>
